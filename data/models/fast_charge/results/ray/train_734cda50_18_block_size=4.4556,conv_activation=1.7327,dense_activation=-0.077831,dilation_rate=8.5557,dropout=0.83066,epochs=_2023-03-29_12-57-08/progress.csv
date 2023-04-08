@@ -1,0 +1,2 @@
+score,time_this_iter_s,done,timesteps_total,episodes_total,training_iteration,experiment_id,date,timestamp,time_total_s,pid,hostname,node_ip,time_since_restore,timesteps_since_restore,iterations_since_restore,trial_id
+15562.9970703125,16534.006139278412,True,,,1,f2e6b3de6a3a402aab3c1c1bb8a83be4,2023-03-29_18-05-35,1680105935,16534.006139278412,24659,gpus1,150.214.140.147,16534.006139278412,0,1,734cda50

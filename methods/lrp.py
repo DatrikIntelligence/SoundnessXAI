@@ -45,6 +45,8 @@ class LRP:
                 r = self.backprop_conv2d(self.weights[i + 1][0], self.weights[i + 1][1], self.activations[i], r, layer)
                 outputs.append(tf.ones_like(r)*3)
                 outputs.append(r)
+            elif 'split_ts' in name:
+                r = tf.expand_dims(tf.keras.backend.concatenate([r[:,:,:,i] for i in range(r.shape[-1])], axis=-1), axis=-1)
             elif 'batch' in name:
                 continue
                 #gamma, beta, moving_mean, moving_variance = self.weights[i + 1]

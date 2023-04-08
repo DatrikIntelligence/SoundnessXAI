@@ -1,0 +1,17 @@
+{
+  "block_size": 1.51,
+  "conv_activation": -0.51,
+  "dense_activation": -0.51,
+  "dilation_rate": 10.49,
+  "dropout": 0.9,
+  "epochs": 100,
+  "fc1": 203.49347220230578,
+  "fc2": 0.0,
+  "input_folding_size": 128,
+  "kernel_size": -0.51,
+  "l1": 0.001,
+  "l2": 0.001,
+  "lr": 0.001,
+  "msblocks": 0,
+  "nblocks": 2.51
+}

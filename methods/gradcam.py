@@ -74,7 +74,7 @@ class GRADCAM:
         display(s.T, importances)
         
         
-class GRADCAM2:
+class GradCAM_LW:
     
     def __init__(self, model, conv_layer_names, factors, time_dimension=False, 
                  feature_dimension=False):

@@ -11,6 +11,7 @@ import numpy as np
 from scoring import *
 from tensorflow.python.framework.ops import disable_eager_execution
 from itertools import product
+from model.models import SplitTS
 
 def validate(validation_function, feature_dimension, time_dimension, method_name, mode=1):
     feature_faker_list = {
@@ -85,7 +86,7 @@ def validate(validation_function, feature_dimension, time_dimension, method_name
     return results
 
 
-def exists_result(results, fd, td, proxy):
+def exists_result(results, td, fd, proxy):
     if proxy == 'cs':
         proxy = 'coherence'
         
@@ -104,8 +105,12 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--Device", help = "CUDA DEVICE")
     parser.add_argument("-c", "--SamplesChunk", help = "Selectivity sample chunk", default=1, required=False, type=int)
     parser.add_argument("-m", "--Mode", help = "GradCam mode", default=1, required=False, type=int)
+    parser.add_argument("-mo", "--Model", help = "Model directory", required=True)
     parser.add_argument("-fd", "--FeatureDimension", help = "Feature Dimiension", default=None, required=False, type=float)
+    parser.add_argument("-tds", "--TimeDimensionStart", help = "Time Dimiension Start", default=None, required=False, type=float)
+    parser.add_argument("-fds", "--FeatureDimensionStart", help = "Feature Dimiension Start", default=None, required=False, type=float)
     parser.add_argument("-td", "--TimeDimension", help = "Time Dimiension", default=None, required=False, type=float)
+    parser.add_argument("-o", "--Output", help = "Result file name", default=None, required=False, type=str)
     
 
     # Read arguments from command line
@@ -115,39 +120,57 @@ if __name__ == "__main__":
         os.environ["CUDA_VISIBLE_DEVICES"]=args.Device
     
     
-    samples2 = pk.load(open('data/samples2.pk', 'rb')).astype(np.float32)
-    targets2 = pk.load(open('data/targets2.pk', 'rb')).astype(np.float32)
+    samples2 = pk.load(open(os.path.join(args.Model, 'samples.pk'), 'rb')).astype(np.float32)
+    targets2 = pk.load(open(os.path.join(args.Model, 'targets.pk'), 'rb')).astype(np.float32)
     print("Samples readed")
     
     
-    seed = 666
-    model = tf.keras.models.load_model('model/cnn2_6.43_%d.h5' % seed, 
+    model = tf.keras.models.load_model(os.path.join(args.Model, 'model.h5'), 
                                    custom_objects={'LeakyReLU': tf.keras.layers.LeakyReLU,
                                                   'NASAScore': NASAScore,
+                                                  'SplitTS': SplitTS,
                                                   'PHM21Score': PHM21Score})
     print("Model readed")
     results = []
     
-    if os.path.exists(f'gradcam{args.SamplesChunk}_{args.Mode}.pk'):
-        results = pk.load(open(f'gradcam{args.SamplesChunk}_{args.Mode}.pk', 'rb'))
+    if args.Output is None:
+        output_file = os.path.join(args.Model, 'results', f'gradcam{args.SamplesChunk}_{args.Mode}.pk')
+    else:
+        output_file = os.path.join(args.Model, 'results', args.Output)
+
+    
+    if os.path.exists(output_file):
+        results = pk.load(open(output_file, 'rb'))
         
     
     if args.TimeDimension is None:
-        tds = [float(i)/10 for i in range(10)]
+        if args.TimeDimensionStart is None:
+            tds = [float(i)/10 for i in range(10)]
+        else:
+            tds = [float(i)/10 for i in range(int(args.TimeDimensionStart*10), 10)]
     else:
         tds = [args.TimeDimension]
         
     if args.FeatureDimension is None:
-        fds = [float(i)/10 for i in range(10)]
+        if args.FeatureDimensionStart is None:
+            fds = [float(i)/10 for i in range(10)]
+        else:
+            fds = [float(i)/10 for i in range(int(args.FeatureDimensionStart*10), 10)]
     else:
         fds = [args.FeatureDimension]
+        
+        
+    print(tds, fds)
        
     for td, fd in product(tds, fds):
 
             for proxy in [ 'selectivity', 'cs', 'identity','stability', 'separability', 'acumen']:
-                print(proxy, fd, td)
+                
                 if exists_result(results, td, fd, proxy):
+                    print(proxy, td, fd, "Done")
                     continue
+                    
+                print(proxy, td, fd, "Computing.....")                    
 
                 if proxy == 'identity':
                     validation_function = lambda model, explainer: methods.validate_identity(model, explainer, samples2)
@@ -169,5 +192,5 @@ if __name__ == "__main__":
                 
                 results += validate(validation_function, fd, td, proxy, mode=args.Mode)
                 
-
-                pk.dump(results, open(f'gradcam{args.SamplesChunk}_{args.Mode}.pk', 'wb'))
+                pk.dump(results, open(output_file, 'wb'))
+                    

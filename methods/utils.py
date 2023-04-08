@@ -232,7 +232,7 @@ def mean_sample(signal):
     return result
     
     
-def validate_acumen(explainer, samples, iterations=100, nstd=1.5, top_features=100):
+def validate_acumen(explainer, samples, iterations=100, nstd=1.5, top_features=100, verbose=True):
     """
     Se eleccionan n puntos de los que tienen mayor score y se perturban creando una nueva
     serie (tp). También se crea otra serie (tr) metiendo ruido en otros n puntos aleatorios. 
@@ -240,7 +240,7 @@ def validate_acumen(explainer, samples, iterations=100, nstd=1.5, top_features=1
     """
     
     ranking = []
-    for i in tqdm.tqdm(range(len(samples)), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)), total=len(samples), disable=not verbose):
         xi = samples[i:i+1] 
         base_exp = explainer.explain(xi)
 
@@ -268,10 +268,10 @@ def validate_acumen(explainer, samples, iterations=100, nstd=1.5, top_features=1
         
     return np.nanmean(ranking)
 
-def validate_coherence(model, explainer, samples, targets, nstd=1.5, top_features=100):
+def validate_coherence(model, explainer, samples, targets, nstd=1.5, top_features=100, verbose=True):
     explains = []
     valid_idx = []
-    for i in tqdm.tqdm(range(len(samples)), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)), total=len(samples), disable=not verbose):
         xi = samples[i:i+1] 
         exp = explainer.explain(xi)
 
@@ -301,6 +301,7 @@ def validate_coherence(model, explainer, samples, targets, nstd=1.5, top_feature
     targets = targets / tmax
 
     pred = model.predict(samples) / tmax
+    pred = pred.reshape(targets.shape)
     errors = 1 - (pred - targets) ** 2
 
     exp = np.array(explains).reshape(samples.shape)
@@ -311,7 +312,7 @@ def validate_coherence(model, explainer, samples, targets, nstd=1.5, top_feature
     
     coherence_i = np.abs(errors - exp_errors)
     coherence = np.mean(coherence_i)
-
+    
     return {
             'coherence': coherence, 
             'completeness':np.mean(exp_errors / errors),
@@ -319,7 +320,7 @@ def validate_coherence(model, explainer, samples, targets, nstd=1.5, top_feature
            }
     
 
-def validate_identity(model, explainer, samples):
+def validate_identity(model, explainer, samples, verbose=True):
     """
     The principle of identity states that identical objects should receive identical explanations. This is 
     a measure of the level of intrinsic non-determinism in the method:
@@ -328,7 +329,7 @@ def validate_identity(model, explainer, samples):
                                 
     """
     errors = []
-    for i, sample in tqdm.tqdm(enumerate(samples), total=samples.shape[0]):
+    for i, sample in tqdm.tqdm(enumerate(samples), total=samples.shape[0], disable=not verbose):
         exp_a = explainer.explain(samples[i:i+1])
         exp_b = explainer.explain(samples[i:i+1])
         
@@ -338,7 +339,7 @@ def validate_identity(model, explainer, samples):
     return np.nanmean(errors)
                               
 
-def validate_separability(model, explainer, samples):
+def validate_separability(model, explainer, samples, verbose=True):
     """
      Non-identical objects can not have identical explanations:
     
@@ -355,7 +356,7 @@ def validate_separability(model, explainer, samples):
     """
     explains = []
     samples_aux = []
-    for i in tqdm.tqdm(range(len(samples)), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)), total=len(samples), disable=not verbose):
         xi = samples[i:i+1] 
         exp = explainer.explain(xi)
         
@@ -366,7 +367,7 @@ def validate_separability(model, explainer, samples):
     samples = np.array(samples_aux)
     
     errors = []
-    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples), disable=not verbose):
         
         for j in range(i+1, len(samples)-1):
             
@@ -384,7 +385,7 @@ def validate_separability(model, explainer, samples):
     return np.nanmean(errors)
 
 
-def validate_stability(model, explainer, samples):
+def validate_stability(model, explainer, samples, verbose=True):
     """
     Similar objects must have similar explanations. This is built 
     on the idea that an explanation method should only return 
@@ -398,7 +399,7 @@ def validate_stability(model, explainer, samples):
     """
     explains = []
     samples_aux = []
-    for i in tqdm.tqdm(range(len(samples)), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)), total=len(samples), disable=not verbose):
         xi = samples[i:i+1] 
         exp = explainer.explain(xi)
         
@@ -410,7 +411,7 @@ def validate_stability(model, explainer, samples):
     samples = np.array(samples_aux)
                     
     errors = []
-    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples), disable=not verbose):
         dxs, des = [], []
         xi = samples[i:i+1]          
         for j in range(len(samples)):    
@@ -436,7 +437,7 @@ def validate_stability(model, explainer, samples):
     return np.nanmean(errors)
 
 
-def validate_selectivity(model, explainer, samples, samples_chunk=1):
+def validate_selectivity(model, explainer, samples, samples_chunk=1, verbose=True):
     """
     The elimination of relevant variables must affect 
     negatively to the prediction. To compute the selectivity 
@@ -447,7 +448,7 @@ def validate_selectivity(model, explainer, samples, samples_chunk=1):
     """
 
     errors = []
-    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples)):
+    for i in tqdm.tqdm(range(len(samples)-1), total=len(samples), disable=not verbose):
         dxs, des = [], []
         xi = samples[i:i+1]
         ei = explainer.explain(xi)
@@ -467,7 +468,7 @@ def validate_selectivity(model, explainer, samples, samples_chunk=1):
             xs.append(xprime.reshape(xi.shape))
             xprime = np.copy(xprime)
             
-        preds = model.predict(np.array(xs), batch_size=len(idxs))[:,0]   
+        preds = model.predict(np.array(xs), batch_size=32)[:,0]   
         e = np.abs(preds[1:] - preds[:-1]) / (preds[0] + 1e-12)
         e = np.cumsum(e)
         e = 1 - (e / (e.max() + 1e-12))
